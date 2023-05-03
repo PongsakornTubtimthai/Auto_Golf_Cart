@@ -1,0 +1,45 @@
+
+#include <stdint.h>
+#include <stdlib.h>
+#include <digitalWriteFast.h>  //For Write PWM
+#include <SPI.h>               //For Transfer value PWM
+//Define Pinmode
+#define FORWARDIN A3           //Input from F Switch
+#define BACKWARDIN A5          //Input form R Switch
+#define SAFTY_IN A4            //Input from Trigger Switch Before Wheel Rot
+#define FORWARDOUT 38          //Step-up to Car Controller
+#define BACKWARDOUT 37         //Step-up to Car Controller 
+#define SAFTY_OUT 36           //Step-up to Car Controller
+#define SPEED_IN A0            //Input from Padel when press
+#define ENC_IN 2               //Input Intrr form ENC
+#define ENC_IN2 3
+#define ENC_COUNT_REV 52        
+#define CSPIN    53            //Output of Digital poten
+
+void setup() 
+{
+  Serial.begin(600);
+  pinMode(FORWARDIN, INPUT);
+  pinMode(BACKWARDIN, INPUT);
+  pinMode (SAFTY_IN, INPUT);
+
+  pinMode(FORWARDOUT, OUTPUT);
+  pinMode(BACKWARDOUT, OUTPUT);
+  pinMode (SAFTY_OUT, OUTPUT);
+ 
+  pinMode (53, OUTPUT);
+
+}
+
+void loop() 
+{
+  float state1 = analogRead(FORWARDIN);
+  float state2 = analogRead(BACKWARDIN);
+  float state3 = analogRead(SAFTY_IN);
+  Serial.print("Forward = ");
+  Serial.println(state1);
+  Serial.print("Backward = ");
+  Serial.println(state2);
+  Serial.print("Safety = ");
+  Serial.println(state3);
+}
