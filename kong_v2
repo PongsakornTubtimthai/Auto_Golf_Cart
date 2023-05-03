@@ -1,0 +1,141 @@
+#include <stdint.h>
+#include <stdlib.h>
+#include <digitalWriteFast.h>  //For Write PWM
+#include <SPI.h>               //For Transfer value PWM
+
+//Define Pinmode
+#define FORWARDIN A3           //Input from F Switch
+#define BACKWARDIN A5          //Input form R Switch
+#define SAFTY_IN A4            //Input from Trigger Switch Before Wheel Rot
+#define FORWARDOUT 38          //Step-up to Car Controller
+#define BACKWARDOUT 37         //Step-up to Car Controller 
+#define SAFTY_OUT 36           //Step-up to Car Controller
+#define SPEED_IN A0            //Input from Padel when press
+#define ENC_IN 2               //Input Intrr form ENC
+#define ENC_IN2 3
+#define ENC_COUNT_REV 52        
+#define CSPIN    53            //Output of Digital poten
+
+#define testenv A7 
+
+//Define Parameter
+long previousMillis = 0;          //For delay
+long currentMillis = 0;           //For delay
+int interval = 1000;             //For delay
+float state1 = 0;                 //Value from ang F Switch A3 (Digital 0,1023)
+float state2 = 0;                 //Value from ang R Switch A5 (Digital 0,1023)
+float state3 = 0;                 //Value from ang Trigger Switch A4 (Digital 0,1023)
+float state4 = 0;                 //Value from ang Padel when press (Analog 0-1023)
+float value = 0;                  //Speed Setpoint (0-255)
+float rpm = 0;                    //Speed Round per min of motor
+float KmperHr = 0;                //Speed of car
+float currentSpeed = 0;           //Speed of car after filter
+float DperR = 1.41/1000;          //Dimeter of wheel
+volatile long encoderValue =0;   //ENC Value when Intrr for Func1
+volatile long encoderValue2 = 0;  ////ENC Value when Intrr for Func2
+float Km = 0;                     //Distance when car moving
+byte address = 0x11;              //Address of Digital poten (From Example)
+int i = 0;                        //For loop in Avg filter
+float vall[11];                    //rpm Array record every interval time
+int count=0;                      //Pointer of rpm Array
+float result;
+void setup() {
+  // put your setup code here, to run once:
+  pinMode(FORWARDIN, INPUT);
+  pinMode(BACKWARDIN, INPUT);
+  pinMode (SAFTY_IN, INPUT);
+
+  pinMode(FORWARDOUT, OUTPUT);
+  pinMode(BACKWARDOUT, OUTPUT);
+  pinMode (SAFTY_OUT, OUTPUT);
+  
+  pinMode (testenv, INPUT);
+ 
+  pinMode (53, OUTPUT);
+  SPI.begin();
+  Serial.begin(9600);
+  attachInterrupt(digitalPinToInterrupt(ENC_IN), updateEncoder, RISING );
+  attachInterrupt(digitalPinToInterrupt(ENC_IN2), updateEncoder2, RISING  );
+
+}
+void updateEncoder()
+{
+ encoderValue++;
+}
+void updateEncoder2()
+{
+  encoderValue2++;
+
+}
+void loop() {
+  
+currentMillis = millis();
+  if (currentMillis - previousMillis > interval) 
+  { 
+    previousMillis = currentMillis;
+
+    float state1 = analogRead(FORWARDIN);
+    float state2 = analogRead(BACKWARDIN);
+    float state3 = analogRead(SAFTY_IN);
+    float state4 = analogRead(SPEED_IN);
+    runSpeed(state1,state2,state3,value);
+    
+    float testenv =  analogRead(testenv);
+    Serial.print("243");
+    Serial.print("=");
+    Serial.println(testenv);
+   /*
+    Serial.print("F =");
+    Serial.println(state1);
+    Serial.print("B =");
+    Serial.println(state2); 
+    Serial.print("S =");
+    Serial.println(state3);
+
+     Serial.print("rpm =");
+    Serial.println(rpm);
+    Serial.print("km/hr");
+    Serial.println(KmperHr);
+    Serial.print("env =");
+    Serial.println(encoderValue2);*/
+
+    //cal speed
+   rpm = (float)(encoderValue2 *60 / ENC_COUNT_REV);
+   //Km = (float(encoderValue2)/ENC_COUNT_REV*1.31);
+   KmperHr = (float)((rpm*60)*DperR);
+  
+   
+     
+   //encoderValue2= 0;
+   
+  } 
+}
+
+void runSpeed (float state1,float state2,float state3,float value)
+{
+if (state1 > 1000 )
+{
+  //Serial.println("func runspeed");
+  digitalWrite(FORWARDOUT,HIGH);  
+  
+
+  value = 255;
+  
+  digitalPotWrite(value);
+}
+if (state1 < 1000)
+{
+  digitalWrite(FORWARDOUT,LOW);
+}
+
+
+}
+
+int digitalPotWrite(float value)  // ปรับค่า PWM
+{
+  //Serial.println("PotWrite Func");
+  digitalWrite(53, LOW);
+  SPI.transfer(address);
+  SPI.transfer(value);
+  digitalWrite(53, HIGH);
+}
