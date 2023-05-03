@@ -1,0 +1,168 @@
+#include <stdint.h>
+#include <stdlib.h>
+#include <digitalWriteFast.h>  
+#include <SPI.h>              
+
+#define FORWARDIN A3          
+#define BACKWARDIN A5         
+#define SAFTY_IN A4          
+#define SPEED_IN A0          
+
+#define FORWARDOUT 38      
+#define BACKWARDOUT 37   
+#define SAFTY_OUT 36        
+
+#define ENC_IN 2            
+#define ENC_IN2 3
+#define ENC_COUNT_REV 52
+
+#define CSPIN    53         
+
+#define testenvpin A7     
+
+
+long previousMillis = 0;        
+long currentMillis = 0;          
+int interval = 1000;             
+
+float stage_forward = 0;      
+float stage_backward = 0;       
+float stage_safty = 0;            
+float stage_speed = 0;          
+
+unsigned int value = 0;         
+
+byte address = 0x11;           
+float testenv;
+
+float rpm = 0;                  
+float KmperHr = 0;           
+float currentSpeed = 0;         
+float DperR = 1.41 / 1000;       
+volatile long encoderValue = 0; 
+volatile long encoderValue2 = 0; 
+float Km = 0;                    
+int i = 0;                      
+float vall[11];               
+int count = 0;             
+float result;
+
+void setup() {
+  pinMode(FORWARDIN, INPUT);    
+  pinMode(BACKWARDIN, INPUT);
+  pinMode (SAFTY_IN, INPUT);
+  /*-----------------------------------------------------------------------------------*/
+  pinMode(FORWARDOUT, OUTPUT);    
+  pinMode(BACKWARDOUT, OUTPUT);
+  pinMode (SAFTY_OUT, OUTPUT);
+  /*-----------------------------------------------------------------------------------*/
+  pinMode (testenvpin, INPUT);  
+  /*-----------------------------------------------------------------------------------*/
+  pinMode (53, OUTPUT);
+  SPI.begin();
+  Serial.begin(9600);
+
+  attachInterrupt(digitalPinToInterrupt(ENC_IN), updateEncoder, RISING );
+  attachInterrupt(digitalPinToInterrupt(ENC_IN2), updateEncoder2, RISING  );
+}
+
+
+void updateEncoder()
+{
+  encoderValue++;
+}
+void updateEncoder2()
+{
+  encoderValue2++;
+
+}
+void loop() {
+  currentMillis = millis();
+  if (currentMillis - previousMillis > interval)
+  {
+    previousMillis = currentMillis;
+  }
+
+  stage_forward = analogRead(FORWARDIN);
+  stage_backward = analogRead(BACKWARDIN);
+  stage_safty = analogRead(SAFTY_IN);
+  stage_speed = analogRead(SPEED_IN);
+
+  Serial.print("F =");
+  Serial.println(stage_forward);
+  Serial.print("B =");
+  Serial.println(stage_backward);
+  Serial.print("S =");
+  Serial.println(stage_safty);
+
+  //  Serial.print("rpm =");
+  //  Serial.println(rpm);
+  //  Serial.print("kph =");
+  //  Serial.println(KmperHr);
+
+  testenv =  analogRead(testenvpin);
+
+  runSpeed(stage_forward, stage_backward, stage_safty, value);
+
+  //cal speed
+  //  rpm = (float)(encoderValue2 * 60 / ENC_COUNT_REV);
+  //  KmperHr = (float)((rpm * 60) * DperR);
+
+
+  //  encoderValue2= 0;
+
+}
+
+void runSpeed (float stage_forward, float stage_backward, float stage_safty, float value)
+{
+
+  if ((stage_forward > 1000) && (stage_backward < 1000)) 
+  {
+    Serial.println("----Mode Forward----");
+    digitalWrite(BACKWARDOUT, LOW);       
+    digitalWrite(SAFTY_OUT, HIGH);        
+    digitalWrite(FORWARDOUT, HIGH);        
+    value = 100;                           
+    digitalPotWrite(value);               
+
+  }
+
+  else if (stage_forward < 800)  
+  {
+    Serial.println("--------Stop-------");
+    digitalWrite(SAFTY_OUT, LOW);
+    digitalWrite(FORWARDOUT, LOW);
+    digitalWrite(BACKWARDOUT, LOW);
+    value = 0;
+    digitalPotWrite(value);
+
+  }
+  if ((stage_backward > 1000) && (stage_forward < 1000))
+  {
+    Serial.println("----Mode Backward----");
+    digitalWrite(FORWARDOUT, LOW);
+    digitalWrite(SAFTY_OUT, HIGH);
+    digitalWrite(BACKWARDOUT, HIGH);
+    value = 100;
+    digitalPotWrite(value);           
+  }
+  else if (stage_backward < 800)
+  {
+    Serial.println("--------Stop-------");
+    digitalWrite(SAFTY_OUT, LOW);
+    digitalWrite(FORWARDOUT, LOW);
+    digitalWrite(BACKWARDOUT, LOW);
+    value = 0;
+    digitalPotWrite(value);
+
+  }
+
+}
+
+int digitalPotWrite(float value) 
+{
+  digitalWrite(53, LOW);
+  SPI.transfer(address);
+  SPI.transfer(value);
+  digitalWrite(53, HIGH);
+}
